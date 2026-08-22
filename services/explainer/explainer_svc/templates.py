@@ -2561,6 +2561,46 @@ def explain_delegation_loop(signal: FailureSignal) -> Explanation:
     )
 
 
+def explain_oversized_tool_arguments(signal: FailureSignal) -> Explanation:
+    ev = signal.evidence
+    tool_name = ev.get("tool_name", "?")
+    arg_length = ev.get("arg_length", "?")
+    threshold = ev.get("threshold", "?")
+
+    return Explanation(
+        **_base(signal),
+        title=f"Oversized tool arguments for '{tool_name}'",
+        what=(
+            f"The agent called `{tool_name}` at step {signal.step_index} with a payload "
+            f"of {arg_length} characters, exceeding the maximum allowed size of {threshold} "
+            f"characters. This usually happens when the agent attempts to dump an entire "
+            f"document or conversation history into a single string argument."
+        ),
+        why_it_matters=(
+            "Stuffing massive payloads into tool arguments consumes excessive tokens, "
+            "increases latency dramatically, and often causes the LLM to lose track of "
+            "the actual task or format the JSON improperly."
+        ),
+        evidence_summary=(
+            f"Called `{tool_name}` at step {signal.step_index} with {arg_length} characters (limit: {threshold})."
+        ),
+        suggested_fixes=[
+            CodeFix(
+                description="Use references instead of passing raw data",
+                language="python",
+                code=(
+                    "# Instead of passing the entire document content as an argument\n"
+                    "# modify the tool to accept a file path, URL, or document ID.\n"
+                    "def my_tool(document_id: str):\n"
+                    "    # Tool fetches the content internally\n"
+                    "    content = fetch_document(document_id)\n"
+                    "    ..."
+                ),
+            ),
+        ],
+    )
+
+
 TEMPLATES: Dict[FailureType, Callable[[FailureSignal], Explanation]] = {
     FailureType.TOOL_LOOP: explain_tool_loop,
     FailureType.TOOL_THRASHING: explain_tool_thrashing,
@@ -2591,4 +2631,5 @@ TEMPLATES: Dict[FailureType, Callable[[FailureSignal], Explanation]] = {
     FailureType.MODEL_FALLBACK_DRIFT: explain_model_fallback_drift,
     FailureType.MEMORY_POISONING: explain_memory_poisoning,
     FailureType.DELEGATION_LOOP: explain_delegation_loop,
+    FailureType.OVERSIZED_TOOL_ARGUMENTS: explain_oversized_tool_arguments,
 }

@@ -85,7 +85,7 @@ class TestOversizedToolArgumentsDetector(unittest.TestCase):
         state = make_state()
         state.tool_calls = [make_tool_call("web_search", args="a" * 10_000)]
         assert self.detector.on_run_completion(state) is None
-        
+
         # 10,001 should trigger
         state.tool_calls = [make_tool_call("web_search", args="a" * 10_001)]
         signal = self.detector.on_run_completion(state)
@@ -101,7 +101,7 @@ class TestOversizedToolArgumentsDetector(unittest.TestCase):
         tc2 = make_tool_call("search2", args="b" * 20_000)
         tc2.step_index = 2
         state.tool_calls = [tc1, tc2]
-        
+
         signal = self.detector.on_run_completion(state)
         assert signal is not None
         assert signal.step_index == 1
